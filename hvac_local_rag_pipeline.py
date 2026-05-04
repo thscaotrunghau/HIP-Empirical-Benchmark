@@ -33,7 +33,7 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='repla
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 # ─── CẤU HÌNH ───────────────────────────────────────────────────────────────
-GEMINI_API_KEY = "AIzaSyBP8yIlAfxWEV8EOrbwBG0B2f1otiqlCfs"
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "YOUR_API_KEY_HERE")
 
 # Thu muc chua tai lieu tieu chuan ky thuat (6 PDF: QCVN, ASHRAE, TCVN)
 DOCS_FOLDER = r"C:\TONG HOP\DATA\DHCN\VIET BAO AI FOR HVAC\ASHRARE 2026\BAI 01\TIEU CHUAN"
@@ -518,6 +518,20 @@ def run_pipeline(df: pd.DataFrame, collection) -> pd.DataFrame:
             df_ck = pd.DataFrame(records)[ORDERED_COLS]
             df_ck.to_csv(CHECKPOINT_CSV, index=False, encoding="utf-8-sig")
             print(f"    [CHECKPOINT] Da luu {len(records)}/{total} dong.")
+            
+            # Tự động đồng bộ và push lên Github
+            try:
+                import subprocess
+                import shutil
+                github_dir = r"C:\TONG HOP\DATA\DHCN\VIET BAO AI FOR HVAC\THU KY NCKH\HIP-Empirical-Benchmark"
+                dest_csv = os.path.join(github_dir, "HVAC_Benchmark_N900_Data.csv")
+                shutil.copy2(CHECKPOINT_CSV, dest_csv)
+                subprocess.run(["git", "add", "HVAC_Benchmark_N900_Data.csv"], cwd=github_dir, check=True, capture_output=True)
+                subprocess.run(["git", "commit", "-m", f"Auto-checkpoint update N={len(records)}"], cwd=github_dir, check=True, capture_output=True)
+                subprocess.run(["git", "push", "origin", "master"], cwd=github_dir, check=True, capture_output=True)
+                print(f"    [GITHUB] Da push log N={len(records)} len kho luu tru minh bach.")
+            except Exception as e:
+                print(f"    [GITHUB] Loi auto-push: {e}")
 
         # Rate-limit safe: ngu SLEEP_BETWEEN_CALLS giay
         time.sleep(SLEEP_BETWEEN_CALLS)
